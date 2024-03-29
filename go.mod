@@ -2,10 +2,7 @@ module dlsir
 
 go 1.21.5
 
-require (
-	github.com/davecgh/go-spew v1.1.1
-	github.com/gin-gonic/gin v1.9.1
-)
+require github.com/gin-gonic/gin v1.9.1
 
 require (
 	github.com/bytedance/sonic v1.9.1 // indirect
