@@ -106,62 +106,88 @@ func parseFirmwareVersion(version string) *firmwareVersion {
 	return &firmwareVersion{Major: major, Submajor: submajor, Minor: minor, Fix: fix, Hotfix: hotfix}
 }
 
-func stringFromReader(reader *bufio.Reader, file string, desc string) *string {
+func stringFromReader(reader *bufio.Reader, file string, desc string) (string, error) {
 	str, err := reader.ReadString(0)
 	if err != nil {
 		_log(nil, "Failed to read %v from %v: %v\n", desc, file, err)
-		return nil
+		return "", err
 	}
-	str = strings.Trim(str, string(0))
-	return &str
+	str = strings.Trim(str, string("\x00"))
+	return str, nil
 }
 
-func getFirmwareInfo(file string) *firmwareInfo {
+func getFirmwareInfo(file string) (*firmwareInfo, error) {
 	f, err := os.Open(file)
 	if err != nil {
 		_log(nil, "Failed to open firmware file %v: %v\n", file, err)
-		return nil
+		return nil, err
 	}
 	defer f.Close()
 
 	reader := bufio.NewReader(f)
-	reader.Discard(0x20)
-	phone := stringFromReader(reader, file, "phone info")
+
+	_, err = reader.Discard(0x20)
+	if err != nil {
+		return nil, err
+	}
+
+	phone, err := stringFromReader(reader, file, "phone info")
+	if err != nil {
+		return nil, err
+	}
 
 	// skip 0-bytes
 	for {
-		b, _ := reader.ReadByte()
+		b, err := reader.ReadByte()
+		if err != nil {
+			return nil, err
+		}
 		if b != 0 {
 			break
 		}
 	}
-	reader.UnreadByte()
 
-	version := stringFromReader(reader, file, "version info")
+	err = reader.UnreadByte()
+	if err != nil {
+		return nil, err
+	}
 
-	f.Seek(-0x128, 2)
+	version, err := stringFromReader(reader, file, "version info")
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = f.Seek(-0x128, 2)
+	if err != nil {
+		return nil, err
+	}
+
 	reader.Reset(f)
-	devType := stringFromReader(reader, file, "device type")
 
-	reader.Discard(0x2)
-	fwType := stringFromReader(reader, file, "firmware type")
-
-	if phone == nil || version == nil || devType == nil || fwType == nil {
-		return nil
+	devType, err := stringFromReader(reader, file, "device type")
+	if err != nil {
+		return nil, err
 	}
 
-	// _log(nil, "%20v   %v.%v.%v.%v   %10v   %v\n", *phone, major, minor, fix, hotfix, *fwType, file)
-
-	if *fwType != "Siemens SIP" && *fwType != "Siemens HFA" {
-		_log(nil, "WARNING: Unknown devType = '%v' - is the file a firmware image?\n", *fwType)
-		return nil
+	_, err = reader.Discard(0x2)
+	if err != nil {
+		return nil, err
 	}
 
-	ver := parseFirmwareVersion(*version)
+	fwType, err := stringFromReader(reader, file, "firmware type")
+	if err != nil {
+		return nil, err
+	}
+
+	if fwType != "Siemens SIP" && fwType != "Siemens HFA" {
+		return nil, fmt.Errorf("unknown device type'%v' - is the file a firmware image", fwType)
+	}
+
+	ver := parseFirmwareVersion(version)
 	if ver == nil {
-		return nil
+		return nil, fmt.Errorf("failed to parse firmware version '%v'", version)
 	}
 
-	info := firmwareInfo{File: file, Phone: *phone, DevType: *devType, FwType: *fwType, FwVersion: *ver}
-	return &info
+	info := firmwareInfo{File: file, Phone: phone, DevType: devType, FwType: fwType, FwVersion: *ver}
+	return &info, nil
 }

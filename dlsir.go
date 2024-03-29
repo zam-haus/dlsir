@@ -157,7 +157,12 @@ func sendSoftware(c *gin.Context, phone *phoneDesc, msg message) (string, []item
 		return "", []item{}
 	}
 
-	fw := getFirmwareInfo("files/" + fwFile.Value)
+	fw, err := getFirmwareInfo("files/" + fwFile.Value)
+	if err != nil {
+		_log(c, "Failed to read firmware version from file; maybe not a proper firmware file?")
+		_log(c, "Error: %v", err.Error())
+		return "", []item{}
+	}
 
 	_log(c, "Issuing software update for phone %v / %v", phone.Number, phone.IP)
 	_log(c, " - old version: %v", phone.FwVersion)
@@ -280,13 +285,17 @@ func postLoginService(c *gin.Context) {
 		fwFile, err := getItem(config, fwConfigName)
 		needsUpdate := false
 		if err == nil {
-			myVersion := getFirmwareInfo("files/" + fwFile.Value)
-
-			needsUpdate = ver.Compare(myVersion.FwVersion) < 0
-			if needsUpdate {
-				_log(c, "Phone is running old firmware, is: %v, should be: %v", *ver, myVersion.FwVersion)
+			myVersion, err := getFirmwareInfo("files/" + fwFile.Value)
+			if err != nil {
+				_log(c, "Failed to read firmware version from file; maybe not a proper firmware file?")
+				_log(c, "Error: %v", err.Error())
 			} else {
-				_log(c, "Phone is running most recent firmware %v", *ver)
+				needsUpdate = ver.Compare(myVersion.FwVersion) < 0
+				if needsUpdate {
+					_log(c, "Phone is running old firmware, is: %v, should be: %v", *ver, myVersion.FwVersion)
+				} else {
+					_log(c, "Phone is running most recent firmware %v", *ver)
+				}
 			}
 		} else {
 			_log(c, "I don't have a firmware for %v (configure as %v)", *devType, fwConfigName)
