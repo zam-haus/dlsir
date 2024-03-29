@@ -64,7 +64,7 @@ func (info firmwareInfo) IsSIP() bool {
 	return info.FwType == "Siemens SIP"
 }
 
-func parseFirmwareVersion(version string) *firmwareVersion {
+func parseFirmwareVersion(version string) (*firmwareVersion, error) {
 	// try to parse firmware version
 	// Vx[.y] Rm.f.h
 	rx := regexp.MustCompile(`V(\d+)(\.(\d+))? R(\d+)\.(\d+)\.(\d+)`)
@@ -72,45 +72,39 @@ func parseFirmwareVersion(version string) *firmwareVersion {
 
 	major, err := strconv.Atoi(m[0][1])
 	if err != nil {
-		_log(nil, "Error: Failed to parse major part (%v) of version: %v", m[0][1], err)
-		return nil
+		return nil, fmt.Errorf("failed to parse major part (%v) of version: %v", m[0][1], err)
 	}
 
 	submajor := 0
 	if m[0][3] != "" {
 		submajor, err = strconv.Atoi(m[0][3])
 		if err != nil {
-			_log(nil, "Error: Failed to parse submajor part (%v) of version: %v", m[0][3], err)
-			return nil
+			return nil, fmt.Errorf("failed to parse submajor part (%v) of version: %v", m[0][3], err)
 		}
 	}
 
 	minor, err := strconv.Atoi(m[0][4])
 	if err != nil {
-		_log(nil, "Error: Failed to parse minor part (%v) of version: %v", m[0][4], err)
-		return nil
+		return nil, fmt.Errorf("failed to parse minor part (%v) of version: %v", m[0][4], err)
 	}
 
 	fix, err := strconv.Atoi(m[0][5])
 	if err != nil {
-		_log(nil, "Error: Failed to parse fix part (%v) of version: %v", m[0][5], err)
-		return nil
+		return nil, fmt.Errorf("failed to parse fix part (%v) of version: %v", m[0][5], err)
 	}
 
 	hotfix, err := strconv.Atoi(m[0][6])
 	if err != nil {
-		_log(nil, "Error: Failed to parse hotfix part (%v) of version: %v", m[0][6], err)
-		return nil
+		return nil, fmt.Errorf("failed to parse hotfix part (%v) of version: %v", m[0][6], err)
 	}
 
-	return &firmwareVersion{Major: major, Submajor: submajor, Minor: minor, Fix: fix, Hotfix: hotfix}
+	return &firmwareVersion{Major: major, Submajor: submajor, Minor: minor, Fix: fix, Hotfix: hotfix}, nil
 }
 
 func stringFromReader(reader *bufio.Reader, file string, desc string) (string, error) {
 	str, err := reader.ReadString(0)
 	if err != nil {
-		_log(nil, "Failed to read %v from %v: %v\n", desc, file, err)
-		return "", err
+		return "", fmt.Errorf("failed to read %v from %v: %v\n", desc, file, err)
 	}
 	str = strings.Trim(str, string("\x00"))
 	return str, nil
@@ -119,8 +113,7 @@ func stringFromReader(reader *bufio.Reader, file string, desc string) (string, e
 func getFirmwareInfo(file string) (*firmwareInfo, error) {
 	f, err := os.Open(file)
 	if err != nil {
-		_log(nil, "Failed to open firmware file %v: %v\n", file, err)
-		return nil, err
+		return nil, fmt.Errorf("failed to open firmware file %v: %v\n", file, err)
 	}
 	defer f.Close()
 
@@ -183,9 +176,9 @@ func getFirmwareInfo(file string) (*firmwareInfo, error) {
 		return nil, fmt.Errorf("unknown device type'%v' - is the file a firmware image", fwType)
 	}
 
-	ver := parseFirmwareVersion(version)
-	if ver == nil {
-		return nil, fmt.Errorf("failed to parse firmware version '%v'", version)
+	ver, err := parseFirmwareVersion(version)
+	if err == nil {
+		return nil, fmt.Errorf("failed to parse firmware version '%v': %v", version, err)
 	}
 
 	info := firmwareInfo{File: file, Phone: phone, DevType: devType, FwType: fwType, FwVersion: *ver}

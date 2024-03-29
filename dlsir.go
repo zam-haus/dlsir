@@ -274,8 +274,9 @@ func postLoginService(c *gin.Context) {
 			return
 		}
 
-		ver := parseFirmwareVersion(*fwVersion)
-		if ver == nil {
+		ver, err := parseFirmwareVersion(*fwVersion)
+		if err != nil {
+			_log(c, "%v", err.Error())
 			c.Status(http.StatusBadRequest)
 			return
 		}
