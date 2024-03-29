@@ -467,9 +467,9 @@ func main() {
 	if err != nil {
 		_log(nil, "Failed to parse manage-interval '%v'\n", manageIntervalStr)
 		os.Exit(1)
-		panic("")
-
+		return
 	}
+
 	go timerFunc(managedPhones, manageInterval, listenPort)
 
 	gin.SetMode(gin.ReleaseMode)
@@ -479,5 +479,9 @@ func main() {
 	router.GET("/file/:file", getFile)
 	router.POST("/DeploymentService/LoginService", postLoginService)
 
-	router.RunTLS(fmt.Sprintf("%v:%v", listenIP, listenPort), tlsCert, tlsKey)
+	err = router.RunTLS(fmt.Sprintf("%v:%v", listenIP, listenPort), tlsCert, tlsKey)
+	if err != nil {
+		_log(nil, "Failed to start server: %v", err)
+		os.Exit(1)
+	}
 }
