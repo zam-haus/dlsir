@@ -1,0 +1,19 @@
+# This is the configuration file for DLSir itself.
+# This file does not contain any configuration items sent to the phones.
+
+# Basic network configuration
+listen-ip     = 0.0.0.0
+listen-port   = 18443
+tls-cert-file = ./cert.pem
+tls-key-file  = ./key.pem
+
+# Fully managed phones that will be actively contacted by DLSir
+managed-phones[0] = phone0.example.org
+managed-phones[1] = phone1.example.org
+managed-phones[2] = phone2.example.org
+
+# Interval between two ContactMe requests
+manage-interval = 24h
+
+# Firmware files must be stored in files/
+fw-openstage40 = my_firmware.img

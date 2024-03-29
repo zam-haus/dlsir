@@ -1,0 +1,113 @@
+# Keys
+key-label-unicode[1] = 
+function-key-def[1] = 0
+
+key-label-unicode[2] = 
+function-key-def[2] = 0
+
+key-label-unicode[3] = 
+function-key-def[3] = 0
+
+key-label-unicode[4] = 
+function-key-def[4] = 0
+
+key-label-unicode[5] = 
+function-key-def[5] = 0
+
+key-label-unicode[6] = 
+function-key-def[6] = 0
+
+key-label-unicode[1001] = 
+function-key-def[1001] = 0
+
+key-label-unicode[1002] = 
+function-key-def[1003] = 0
+
+key-label-unicode[1004] = 
+function-key-def[1004] = 0
+
+key-label-unicode[1005] = 
+function-key-def[1005] = 
+select-dial[1005] = 
+
+key-label-unicode[1006] = 
+function-key-def[1006] = 
+
+# Network configuration
+vlan-method = 2
+vlan-id = 
+dhcp = true
+dhcp-reuse = false
+ipv6-dhcp-enabled = true
+ipv6-dhcp-addr-reuse = false
+ssh-enable = false
+default-domain = 
+
+# SIP configuration
+sip-tls-authentication-policy = 0
+sip-transport-user = 0
+sip-keepalive-method = 0
+realm = sipsrv.example.org
+reg-addr = sipsrv.example.org
+reg-port = 5060
+reg-ttl = 3600
+register-by-name = false
+registrar-addr = sipsrv.example.org
+registrar-port = 5060
+sgnl-gateway-addr-user = sipsrv.example.org
+sgnl-gateway-port-user = 5060
+sgnl-route = 0
+server-type = 0
+
+# sounds and volume
+ringer-melody = 2
+ringer-tone-sequence = 2
+ringer-audio-file = 
+# disable music on hold
+moh-enabled = false
+
+# misc.
+missed-logging = 0
+delete-missed-when-called = 0
+
+display-brightness = 3
+
+# disable LED indication for missed calls
+missed-call-led = 3
+
+# disable call log
+call-log-enabled = false
+
+# actually show the ID in the display
+use-display-id = true
+
+# File uploads
+# Files must be served by DLSir; just put the into the files folder
+file-type[1] = LOGO
+file-name[1] = logo.bmp
+
+# locale
+country-iso = DE
+language-iso = de
+
+daylight-save = true
+auto-daylight-save = true
+sntp-tz-offset = 60
+# 9 = Europe
+daylight-save-zone-id = 9
+sntp-addr-backup = sntpsrv.example.org
+
+
+# disable SNMP - values are barely useful
+snmp-queries-allowed = false
+
+
+# enable HD
+codec-allowed[1] = true
+codec-allowed[2] = true
+codec-allowed[3] = true
+
+# prioritize HD
+codec-rank[1] = 2
+codec-rank[2] = 1
+codec-rank[3] = 3

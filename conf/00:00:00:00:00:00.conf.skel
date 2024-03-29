@@ -1,0 +1,19 @@
+# OpenStage 40
+
+# The entries in this file will override the entries from phonedefault.conf
+# This can be used to provide phone-specific config entries without duplicating
+# the config applied to all phones.
+
+# max 24 chars
+display-id-unicode = my phone
+
+
+# network configuration
+hostname = name_of_phone
+
+# SIP configuration
+e164 = 4242
+basic-e164 = 4242
+sip-user-id = 4242
+sip-pwd = YOUR_PW_HERE
+sip-name = name_of_phone
