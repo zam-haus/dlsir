@@ -73,7 +73,7 @@ func mergeItemLists(defaults, specifics []item) []item {
 	copy(res, defaults)
 	for _, si := range specifics {
 		idx := slices.IndexFunc(res, func(i item) bool { return i.Name == si.Name && i.Index == si.Index })
-		if -1 != idx {
+		if idx != -1 {
 			res[idx] = si
 		} else {
 			res = append(res, si)
@@ -112,7 +112,7 @@ func getItem(items []item, name string) (item, error) {
 			return item, nil
 		}
 	}
-	return item{}, errors.New("No such item")
+	return item{}, errors.New("no such item")
 }
 
 func getPhoneConfig(c *gin.Context, phone *phoneDesc, msg message) []item {

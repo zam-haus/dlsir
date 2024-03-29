@@ -134,7 +134,7 @@ func sendFiles(c *gin.Context, phone *phoneDesc, msg message) (string, []item) {
 
 	localHost := c.Request.Host
 
-	for idx, _ := range items {
+	for idx := range items {
 		if items[idx].Name == "file-name" {
 			items[idx].Name = "file-https-base-url"
 			items[idx].Value = fmt.Sprintf("https://%v/file/%v", localHost, items[idx].Value)
@@ -421,7 +421,7 @@ func timerFunc(managedPhones []item, manageInterval time.Duration, listenPort st
 	defer ticker.Stop()
 
 	_log(nil, "Sending initial ContactMe to %v phones\n", len(managedPhones))
-	for true {
+	for {
 		for _, phone := range managedPhones {
 			sendContactMe(listenPort, phone.Value)
 
