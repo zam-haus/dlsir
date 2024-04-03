@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/zam-haus/dlsir/internal/firmware"
+
 	"github.com/gin-gonic/gin"
 	// "github.com/davecgh/go-spew/spew"
 )
@@ -60,7 +62,7 @@ type phoneDesc struct {
 	PendingFiles  []string
 	RqBegin       time.Time
 	DevType       string
-	FwVersion     firmwareVersion
+	FwVersion     firmware.FirmwareVersion
 	FwNeedsUpdate bool
 }
 
@@ -157,7 +159,7 @@ func sendSoftware(c *gin.Context, phone *phoneDesc, msg message) (string, []item
 		return "", []item{}
 	}
 
-	fw, err := getFirmwareInfo("files/" + fwFile.Value)
+	fw, err := firmware.GetFirmwareInfo("files/" + fwFile.Value)
 	if err != nil {
 		_log(c, "Failed to read firmware version from file; maybe not a proper firmware file?")
 		_log(c, "Error: %v", err.Error())
@@ -278,7 +280,7 @@ func postLoginService(c *gin.Context) {
 			return
 		}
 
-		ver, err := parseFirmwareVersion(*fwVersion)
+		ver, err := firmware.ParseFirmwareVersion(*fwVersion)
 		if err != nil {
 			_log(c, "%v", err.Error())
 			c.Status(http.StatusBadRequest)
@@ -290,7 +292,7 @@ func postLoginService(c *gin.Context) {
 		fwFile, err := getItem(config, fwConfigName)
 		needsUpdate := false
 		if err == nil {
-			myVersion, err := getFirmwareInfo("files/" + fwFile.Value)
+			myVersion, err := firmware.GetFirmwareInfo("files/" + fwFile.Value)
 			if err != nil {
 				_log(c, "Failed to read firmware version from file; maybe not a proper firmware file?")
 				_log(c, "Error: %v", err.Error())

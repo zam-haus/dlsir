@@ -1,4 +1,4 @@
-module dlsir
+module github.com/zam-haus/dlsir
 
 go 1.21.5
 
