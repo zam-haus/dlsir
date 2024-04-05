@@ -79,7 +79,7 @@ type reason struct {
 
 type message struct {
 	Action   string `xml:"Action,omitempty"`
-	Reason   reason `xml:"ReasonForContact,-"`
+	Reason   reason `xml:"ReasonForContact"`
 	Nonce    string `xml:"nonce,attr"`
 	MaxItems int    `xml:"maxItems,attr,omitempty"`
 	Fragment string `xml:"fragment,attr,omitempty"`
