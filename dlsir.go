@@ -461,10 +461,7 @@ func main() {
 	tlsCert := requireItem(config, "tls-cert-file").Value
 	tlsKey := requireItem(config, "tls-key-file").Value
 
-	managedPhones := make([]item, 0)
-	for _, item := range filterItemList(config, "managed-phones", true) {
-		managedPhones = append(managedPhones, item)
-	}
+	managedPhones := filterItemList(config, "managed-phones", true)
 
 	manageIntervalStr := requireItem(config, "manage-interval").Value
 	manageInterval, err := time.ParseDuration(manageIntervalStr)
