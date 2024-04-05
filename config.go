@@ -11,20 +11,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func printItemList(c *gin.Context, items []item) {
-	for _, item := range items {
-		value := item.Value
-		if strings.Contains(item.Name, "pwd") || strings.Contains(item.Name, "pass") {
-			value = strings.Repeat("-", len(value)) + " (hidden)"
-		}
-		if item.Index == 0 {
-			_log(c, "  - %v = %v\n", item.Name, value)
-		} else {
-			_log(c, "  - %v[%v] = %v\n", item.Name, item.Index, value)
-		}
-	}
-}
-
 func itemsFromFile(c *gin.Context, confFile string) []item {
 	conf, err := os.ReadFile(confFile)
 	if err != nil {
