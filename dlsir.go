@@ -179,7 +179,7 @@ func sendSoftware(c *gin.Context, phone *phoneDesc, msg message) (string, []item
 	return "SoftwareDeployment", items
 }
 
-func readAllItems(c *gin.Context, phone *phoneDesc, msg message) (string, []item) {
+func readAllItems(phone *phoneDesc, msg message) (string, []item) {
 	return "ReadAllItems", []item{}
 }
 
@@ -323,7 +323,7 @@ func postLoginService(c *gin.Context) {
 		// -> software update was likely successful
 		_log(c, "Yay - phone came back after a software update; requesting current configuration")
 
-		action, responseItems = readAllItems(c, phone, msg)
+		action, responseItems = readAllItems(phone, msg)
 		phone.NextStep = RequestConfig
 	} else if msg.Reason.Value == "start-up" || msg.Reason.Value == "solicited" {
 		// we send the full phone configuration both on startup and explicit request
@@ -362,7 +362,7 @@ func postLoginService(c *gin.Context) {
 			action, responseItems = sendSoftware(c, phone, msg)
 			phone.NextStep = WaitForUpdate
 		} else if phone.NextStep == RequestConfig {
-			action, responseItems = readAllItems(c, phone, msg)
+			action, responseItems = readAllItems(phone, msg)
 			// phone.NextStep = RequestConfig
 		} else {
 			_log(c, "Error: Got unexpected NextStep = %v", phone.NextStep)
