@@ -191,7 +191,11 @@ func checkReply(c *gin.Context, phone *phoneDesc, msg message) bool {
 		file := fmt.Sprintf("%v/%v.conf", confDumpDir, phone.Number)
 		content := formatItemList(msg.Items)
 
-		os.WriteFile(file, []byte(content), 0666)
+		err := os.WriteFile(file, []byte(content), 0666)
+		if err != nil {
+			_log(c, "failed to write to file %v with error:\n %v", file, err)
+		}
+
 	}
 
 	return msg.Reason.Status == "accepted"
