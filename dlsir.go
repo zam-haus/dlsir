@@ -475,7 +475,7 @@ func main() {
 
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.Default()
-	router.SetTrustedProxies(nil)
+	_ = router.SetTrustedProxies(nil)
 
 	router.GET("/file/:file", getFile)
 	router.POST("/DeploymentService/LoginService", postLoginService)
