@@ -8,11 +8,9 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-
-	"github.com/gin-gonic/gin"
 )
 
-func itemsFromFile(c *gin.Context, confFile string) ([]item, error) {
+func itemsFromFile(confFile string) ([]item, error) {
 	conf, err := os.ReadFile(confFile)
 	if err != nil {
 		return nil, fmt.Errorf("unable to read file %v: %v", confFile, err)
@@ -87,13 +85,13 @@ func getItem(items []item, name string) (item, error) {
 	return item{}, errors.New("no such item")
 }
 
-func getPhoneConfig(c *gin.Context, phone *phoneDesc, msg message) ([]item, error) {
-	phoneItems, err := itemsFromFile(c, confDir+"/"+phone.Mac+".conf")
+func getPhoneConfig(phone *phoneDesc, msg message) ([]item, error) {
+	phoneItems, err := itemsFromFile(confDir + "/" + phone.Mac + ".conf")
 	if err != nil {
 		return nil, err
 	}
 
-	defaultItems, err := itemsFromFile(c, confDir+"/phonedefault.conf")
+	defaultItems, err := itemsFromFile(confDir + "/phonedefault.conf")
 	if err != nil {
 		return nil, err
 	}

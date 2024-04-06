@@ -127,7 +127,7 @@ func formatItemList(items []item) string {
 }
 
 func sendConfig(c *gin.Context, phone *phoneDesc, msg message) (string, []item) {
-	config, err := getPhoneConfig(c, phone, msg)
+	config, err := getPhoneConfig(phone, msg)
 	if err != nil {
 		_log(c, "Failed to read phone config: %v", err)
 		return "", []item{}
@@ -138,7 +138,7 @@ func sendConfig(c *gin.Context, phone *phoneDesc, msg message) (string, []item) 
 }
 
 func sendFiles(c *gin.Context, phone *phoneDesc, msg message) (string, []item) {
-	config, err := getPhoneConfig(c, phone, msg)
+	config, err := getPhoneConfig(phone, msg)
 	if err != nil {
 		_log(c, "Failed to read phone config: %v", err)
 		return "", []item{}
@@ -162,7 +162,7 @@ func sendSoftware(c *gin.Context, phone *phoneDesc, msg message) (string, []item
 	items := make([]item, 0)
 
 	localHost := c.Request.Host
-	config, err := itemsFromFile(nil, confSrv)
+	config, err := itemsFromFile(confSrv)
 	if err != nil {
 		_log(c, "Failed to read config file %v: %v", confSrv, err)
 		return "", []item{}
@@ -304,7 +304,7 @@ func postLoginService(c *gin.Context) {
 			return
 		}
 
-		config, err := itemsFromFile(nil, confSrv)
+		config, err := itemsFromFile(confSrv)
 		if err != nil {
 			_log(c, "Failed to read config file %v: %v", confSrv, err)
 			c.Status(http.StatusInternalServerError)
@@ -490,7 +490,7 @@ func requireItem(items []item, name string) item {
 func main() {
 	phoneState = make(map[string]*phoneDesc)
 
-	config, err := itemsFromFile(nil, confSrv)
+	config, err := itemsFromFile(confSrv)
 	if err != nil {
 		_log(nil, "Failed to read config file %v: %v", confSrv, err)
 		os.Exit(1)
