@@ -127,12 +127,24 @@ func formatItemList(items []item) string {
 }
 
 func sendConfig(c *gin.Context, phone *phoneDesc, msg message) (string, []item) {
-	items := filterItemList(getPhoneConfig(c, phone, msg), "file-", false)
+	config, err := getPhoneConfig(c, phone, msg)
+	if err != nil {
+		_log(c, "Failed to read phone config: %v", err)
+		return "", []item{}
+	}
+
+	items := filterItemList(config, "file-", false)
 	return "WriteItems", items
 }
 
 func sendFiles(c *gin.Context, phone *phoneDesc, msg message) (string, []item) {
-	items := filterItemList(getPhoneConfig(c, phone, msg), "file-", true)
+	config, err := getPhoneConfig(c, phone, msg)
+	if err != nil {
+		_log(c, "Failed to read phone config: %v", err)
+		return "", []item{}
+	}
+
+	items := filterItemList(config, "file-", true)
 
 	localHost := c.Request.Host
 
@@ -150,7 +162,12 @@ func sendSoftware(c *gin.Context, phone *phoneDesc, msg message) (string, []item
 	items := make([]item, 0)
 
 	localHost := c.Request.Host
-	config := itemsFromFile(nil, confSrv)
+	config, err := itemsFromFile(nil, confSrv)
+	if err != nil {
+		_log(c, "Failed to read config file %v: %v", confSrv, err)
+		return "", []item{}
+	}
+
 	fwConfigName := getFwItemName(phone.DevType)
 	fwFile, err := getItem(config, fwConfigName)
 	if err != nil {
@@ -287,7 +304,13 @@ func postLoginService(c *gin.Context) {
 			return
 		}
 
-		config := itemsFromFile(nil, confSrv)
+		config, err := itemsFromFile(nil, confSrv)
+		if err != nil {
+			_log(c, "Failed to read config file %v: %v", confSrv, err)
+			c.Status(http.StatusInternalServerError)
+			return
+		}
+
 		fwConfigName := getFwItemName(*devType)
 		fwFile, err := getItem(config, fwConfigName)
 		needsUpdate := false
@@ -452,10 +475,26 @@ func timerFunc(managedPhones []item, manageInterval time.Duration, listenPort st
 	}
 }
 
+func requireItem(items []item, name string) item {
+	item, err := getItem(items, name)
+
+	if err != nil {
+		_log(nil, "Failed to find required entry %v\n", name)
+		os.Exit(1)
+		panic("")
+	}
+
+	return item
+}
+
 func main() {
 	phoneState = make(map[string]*phoneDesc)
 
-	config := itemsFromFile(nil, confSrv)
+	config, err := itemsFromFile(nil, confSrv)
+	if err != nil {
+		_log(nil, "Failed to read config file %v: %v", confSrv, err)
+		os.Exit(1)
+	}
 
 	listenIP := requireItem(config, "listen-ip").Value
 	listenPort := requireItem(config, "listen-port").Value
@@ -470,7 +509,6 @@ func main() {
 	if err != nil {
 		_log(nil, "Failed to parse manage-interval '%v'\n", manageIntervalStr)
 		os.Exit(1)
-		return
 	}
 
 	go timerFunc(managedPhones, manageInterval, listenPort)

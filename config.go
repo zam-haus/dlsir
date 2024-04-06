@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"regexp"
 	"slices"
@@ -11,11 +12,10 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func itemsFromFile(c *gin.Context, confFile string) []item {
+func itemsFromFile(c *gin.Context, confFile string) ([]item, error) {
 	conf, err := os.ReadFile(confFile)
 	if err != nil {
-		_log(c, "unable to read file %v: %v", confFile, err)
-		return nil
+		return nil, fmt.Errorf("unable to read file %v: %v", confFile, err)
 	}
 
 	rx := regexp.MustCompile(`\s*(?P<Key>[^\[\]= \t]+)(\[(?P<Index>\d+)\])?\s*=\s*(?P<Value>.*)\s*`)
@@ -31,8 +31,7 @@ func itemsFromFile(c *gin.Context, confFile string) []item {
 
 		m := rx.FindAllStringSubmatch(line, -1)
 		if m == nil {
-			_log(c, "Error: Line %v '%v' has invalid format, skipping...\n", lineNo, line)
-			continue
+			return nil, fmt.Errorf("line #%v '%v' has invalid format", lineNo, line)
 		}
 
 		key, indexStr, value := m[0][1], m[0][3], m[0][4]
@@ -41,15 +40,14 @@ func itemsFromFile(c *gin.Context, confFile string) []item {
 		if indexStr != "" {
 			index, err = strconv.Atoi(indexStr)
 			if err != nil {
-				_log(c, "Error: Line %v '%v' has invalid index (this should not happen), skipping...\n", lineNo, line)
-				continue
+				return nil, fmt.Errorf("line #%v '%v' has invalid index (this should not happen)", lineNo, line)
 			}
 		}
 
 		items = append(items, item{Name: key, Index: index, Value: value})
 	}
 
-	return items
+	return items, nil
 }
 
 func mergeItemLists(defaults, specifics []item) []item {
@@ -80,18 +78,6 @@ func filterItemList(items []item, prefix string, include bool) []item {
 	return res
 }
 
-func requireItem(items []item, name string) item {
-	item, err := getItem(items, name)
-
-	if err != nil {
-		_log(nil, "Failed to find required entry %v\n", name)
-		os.Exit(1)
-		panic("")
-	}
-
-	return item
-}
-
 func getItem(items []item, name string) (item, error) {
 	for _, item := range items {
 		if item.Name == name {
@@ -101,11 +87,18 @@ func getItem(items []item, name string) (item, error) {
 	return item{}, errors.New("no such item")
 }
 
-func getPhoneConfig(c *gin.Context, phone *phoneDesc, msg message) []item {
-	phoneItems := itemsFromFile(c, confDir+"/"+phone.Mac+".conf")
-	defaultItems := itemsFromFile(c, confDir+"/phonedefault.conf")
+func getPhoneConfig(c *gin.Context, phone *phoneDesc, msg message) ([]item, error) {
+	phoneItems, err := itemsFromFile(c, confDir+"/"+phone.Mac+".conf")
+	if err != nil {
+		return nil, err
+	}
 
-	return mergeItemLists(defaultItems, phoneItems)
+	defaultItems, err := itemsFromFile(c, confDir+"/phonedefault.conf")
+	if err != nil {
+		return nil, err
+	}
+
+	return mergeItemLists(defaultItems, phoneItems), nil
 }
 
 func getFwItemName(devType string) string {
