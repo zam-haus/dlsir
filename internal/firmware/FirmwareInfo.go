@@ -99,7 +99,7 @@ func GetFirmwareInfo(file string) (*firmwareInfo, error) {
 	}
 
 	ver, err := ParseFirmwareVersion(version)
-	if err == nil {
+	if err != nil {
 		return nil, fmt.Errorf("failed to parse firmware version '%v': %v", version, err)
 	}
 
