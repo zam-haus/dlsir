@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/zam-haus/dlsir/internal/config"
 	"github.com/zam-haus/dlsir/internal/firmware"
 
 	"github.com/gin-gonic/gin"
@@ -126,7 +127,7 @@ func formatItemList(items []item) string {
 	return sb.String()
 }
 
-func itemFromEntry(entry ConfigEntry) (*item, error) {
+func itemFromEntry(entry config.ConfigEntry) (*item, error) {
 	if entry.Index != "" {
 		index, err := strconv.Atoi(entry.Index)
 		if err != nil {
@@ -139,7 +140,7 @@ func itemFromEntry(entry ConfigEntry) (*item, error) {
 	return &item{Name: entry.Name, Index: 0, Status: "", Value: entry.Value}, nil
 }
 
-func itemsFromEntries(entries []ConfigEntry) ([]item, error) {
+func itemsFromEntries(entries []config.ConfigEntry) ([]item, error) {
 	items := make([]item, 0)
 
 	for _, entry := range entries {
@@ -155,13 +156,13 @@ func itemsFromEntries(entries []ConfigEntry) ([]item, error) {
 }
 
 func sendConfig(c *gin.Context, phone *phoneDesc, msg message) (string, []item) {
-	config, err := getPhoneConfig(phone, msg)
+	conf, err := config.GetMergedConfig(confDir+"/"+phone.Mac+".conf", confDir+"/phonedefault.conf")
 	if err != nil {
 		_log(c, "Failed to read phone config: %v", err)
 		return "", []item{}
 	}
 
-	entries := config.GetFilteredEntries("file-", false)
+	entries := conf.GetFilteredEntries("file-", false)
 	items, err := itemsFromEntries(entries)
 	if err != nil {
 		_log(c, "Failed to convert config entries to phone items: %v", err)
@@ -172,13 +173,13 @@ func sendConfig(c *gin.Context, phone *phoneDesc, msg message) (string, []item) 
 }
 
 func sendFiles(c *gin.Context, phone *phoneDesc, msg message) (string, []item) {
-	config, err := getPhoneConfig(phone, msg)
+	conf, err := config.GetMergedConfig(confDir+"/"+phone.Mac+".conf", confDir+"/phonedefault.conf")
 	if err != nil {
-		_log(c, "Failed to read phone config: %v", err)
+		_log(c, "Failed to read phone conf: %v", err)
 		return "", []item{}
 	}
 
-	entries := config.GetFilteredEntries("file-", true)
+	entries := conf.GetFilteredEntries("file-", true)
 
 	localHost := c.Request.Host
 
@@ -202,14 +203,14 @@ func sendSoftware(c *gin.Context, phone *phoneDesc, msg message) (string, []item
 	items := make([]item, 0)
 
 	localHost := c.Request.Host
-	config, err := entriesFromFile(confSrv)
+	conf, err := config.GetConfigFile(confSrv)
 	if err != nil {
 		_log(c, "Failed to read config file %v: %v", confSrv, err)
 		return "", []item{}
 	}
 
-	fwConfigName := getFwItemName(phone.DevType)
-	fwFile, err := getEntry(config, fwConfigName)
+	fwConfigName := config.GetFwItemName(phone.DevType)
+	fwFile, err := conf.GetEntry(fwConfigName)
 	if err != nil {
 		_log(c, "Failed to read firmware file from configuration; missing entry fw-openstage40")
 		_log(c, "This is strange; we should not have ended up here!")
@@ -344,15 +345,15 @@ func postLoginService(c *gin.Context) {
 			return
 		}
 
-		config, err := entriesFromFile(confSrv)
+		conf, err := config.GetConfigFile(confSrv)
 		if err != nil {
 			_log(c, "Failed to read config file %v: %v", confSrv, err)
 			c.Status(http.StatusInternalServerError)
 			return
 		}
 
-		fwConfigName := getFwItemName(*devType)
-		fwFile, err := getEntry(config, fwConfigName)
+		fwConfigName := config.GetFwItemName(*devType)
+		fwFile, err := conf.GetEntry(fwConfigName)
 		needsUpdate := false
 		if err == nil {
 			myVersion, err := firmware.GetFirmwareInfo("files/" + fwFile.Value)
@@ -495,7 +496,7 @@ func sendContactMe(listenPort, host string) {
 	}
 }
 
-func timerFunc(managedPhones []ConfigEntry, manageInterval time.Duration, listenPort string) {
+func timerFunc(managedPhones []config.ConfigEntry, manageInterval time.Duration, listenPort string) {
 	ticker := time.NewTicker(manageInterval)
 	defer ticker.Stop()
 
@@ -515,7 +516,7 @@ func timerFunc(managedPhones []ConfigEntry, manageInterval time.Duration, listen
 	}
 }
 
-func requireConfigEntry(conf ConfigFile, name string) ConfigEntry {
+func requireConfigEntry(conf config.ConfigFile, name string) config.ConfigEntry {
 	entry, err := conf.GetEntry(name)
 
 	if err != nil {
@@ -530,21 +531,21 @@ func requireConfigEntry(conf ConfigFile, name string) ConfigEntry {
 func main() {
 	phoneState = make(map[string]*phoneDesc)
 
-	config, err := getConfigFile(confSrv)
+	conf, err := config.GetConfigFile(confSrv)
 	if err != nil {
 		_log(nil, "Failed to read config file %v: %v", confSrv, err)
 		os.Exit(1)
 	}
 
-	listenIP := requireConfigEntry(*config, "listen-ip").Value
-	listenPort := requireConfigEntry(*config, "listen-port").Value
+	listenIP := requireConfigEntry(*conf, "listen-ip").Value
+	listenPort := requireConfigEntry(*conf, "listen-port").Value
 
-	tlsCert := requireConfigEntry(*config, "tls-cert-file").Value
-	tlsKey := requireConfigEntry(*config, "tls-key-file").Value
+	tlsCert := requireConfigEntry(*conf, "tls-cert-file").Value
+	tlsKey := requireConfigEntry(*conf, "tls-key-file").Value
 
-	managedPhones := config.GetFilteredEntries("managed-phones", true)
+	managedPhones := conf.GetFilteredEntries("managed-phones", true)
 
-	manageIntervalStr := requireConfigEntry(*config, "manage-interval").Value
+	manageIntervalStr := requireConfigEntry(*conf, "manage-interval").Value
 	manageInterval, err := time.ParseDuration(manageIntervalStr)
 	if err != nil {
 		_log(nil, "Failed to parse manage-interval '%v'\n", manageIntervalStr)

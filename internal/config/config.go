@@ -1,4 +1,4 @@
-package main
+package config
 
 import (
 	"errors"
@@ -91,7 +91,7 @@ func getEntry(entries []ConfigEntry, name string) (ConfigEntry, error) {
 	return ConfigEntry{}, errors.New("no such entry")
 }
 
-func getConfigFile(confFile string) (*ConfigFile, error) {
+func GetConfigFile(confFile string) (*ConfigFile, error) {
 	entries, err := entriesFromFile(confFile)
 	if err != nil {
 		return nil, err
@@ -99,21 +99,21 @@ func getConfigFile(confFile string) (*ConfigFile, error) {
 	return &ConfigFile{Name: confFile, Entries: entries}, nil
 }
 
-func getPhoneConfig(phone *phoneDesc, msg message) (*ConfigFile, error) {
-	phoneEntries, err := entriesFromFile(confDir + "/" + phone.Mac + ".conf")
+func GetMergedConfig(specificFile string, defaultFile string) (*ConfigFile, error) {
+	phoneEntries, err := entriesFromFile(specificFile)
 	if err != nil {
 		return nil, err
 	}
 
-	defaultEntries, err := entriesFromFile(confDir + "/phonedefault.conf")
+	defaultEntries, err := entriesFromFile(defaultFile)
 	if err != nil {
 		return nil, err
 	}
 
 	entries := mergeEntryLists(defaultEntries, phoneEntries)
-	return &ConfigFile{Name: phone.Mac + ".conf + phonedefault.conf", Entries: entries}, nil
+	return &ConfigFile{Name: "MergedConfig("+specificFile+", "+defaultFile+")", Entries: entries}, nil
 }
 
-func getFwItemName(devType string) string {
+func GetFwItemName(devType string) string {
 	return "fw-" + strings.ReplaceAll(strings.ToLower(devType), " ", "")
 }
