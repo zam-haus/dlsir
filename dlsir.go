@@ -126,6 +126,34 @@ func formatItemList(items []item) string {
 	return sb.String()
 }
 
+func itemFromEntry(entry ConfigEntry) (*item, error) {
+	if entry.Index != "" {
+		index, err := strconv.Atoi(entry.Index)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse index '%v' as int: %v", entry.Index, err)
+		}
+
+		return &item{Name: entry.Name, Index: index, Status: "", Value: entry.Value}, nil
+	}
+
+	return &item{Name: entry.Name, Index: 0, Status: "", Value: entry.Value}, nil
+}
+
+func itemsFromEntries(entries []ConfigEntry) ([]item, error) {
+	items := make([]item, 0)
+
+	for _, entry := range entries {
+		i, err := itemFromEntry(entry)
+		if err != nil {
+			return nil, err
+		}
+
+		items = append(items, *i)
+	}
+
+	return items, nil
+}
+
 func sendConfig(c *gin.Context, phone *phoneDesc, msg message) (string, []item) {
 	config, err := getPhoneConfig(phone, msg)
 	if err != nil {
@@ -133,7 +161,13 @@ func sendConfig(c *gin.Context, phone *phoneDesc, msg message) (string, []item) 
 		return "", []item{}
 	}
 
-	items := filterItemList(config, "file-", false)
+	entries := config.GetFilteredEntries("file-", false)
+	items, err := itemsFromEntries(entries)
+	if err != nil {
+		_log(c, "Failed to convert config entries to phone items: %v", err)
+		return "", []item{}
+	}
+
 	return "WriteItems", items
 }
 
@@ -144,15 +178,21 @@ func sendFiles(c *gin.Context, phone *phoneDesc, msg message) (string, []item) {
 		return "", []item{}
 	}
 
-	items := filterItemList(config, "file-", true)
+	entries := config.GetFilteredEntries("file-", true)
 
 	localHost := c.Request.Host
 
-	for idx := range items {
-		if items[idx].Name == "file-name" {
-			items[idx].Name = "file-https-base-url"
-			items[idx].Value = fmt.Sprintf("https://%v/file/%v", localHost, items[idx].Value)
+	for idx := range entries {
+		if entries[idx].Name == "file-name" {
+			entries[idx].Name = "file-https-base-url"
+			entries[idx].Value = fmt.Sprintf("https://%v/file/%v", localHost, entries[idx].Value)
 		}
+	}
+
+	items, err := itemsFromEntries(entries)
+	if err != nil {
+		_log(c, "Failed to convert config entries to phone items: %v", err)
+		return "", []item{}
 	}
 
 	return "FileDeployment", items
@@ -162,14 +202,14 @@ func sendSoftware(c *gin.Context, phone *phoneDesc, msg message) (string, []item
 	items := make([]item, 0)
 
 	localHost := c.Request.Host
-	config, err := itemsFromFile(confSrv)
+	config, err := entriesFromFile(confSrv)
 	if err != nil {
 		_log(c, "Failed to read config file %v: %v", confSrv, err)
 		return "", []item{}
 	}
 
 	fwConfigName := getFwItemName(phone.DevType)
-	fwFile, err := getItem(config, fwConfigName)
+	fwFile, err := getEntry(config, fwConfigName)
 	if err != nil {
 		_log(c, "Failed to read firmware file from configuration; missing entry fw-openstage40")
 		_log(c, "This is strange; we should not have ended up here!")
@@ -304,7 +344,7 @@ func postLoginService(c *gin.Context) {
 			return
 		}
 
-		config, err := itemsFromFile(confSrv)
+		config, err := entriesFromFile(confSrv)
 		if err != nil {
 			_log(c, "Failed to read config file %v: %v", confSrv, err)
 			c.Status(http.StatusInternalServerError)
@@ -312,7 +352,7 @@ func postLoginService(c *gin.Context) {
 		}
 
 		fwConfigName := getFwItemName(*devType)
-		fwFile, err := getItem(config, fwConfigName)
+		fwFile, err := getEntry(config, fwConfigName)
 		needsUpdate := false
 		if err == nil {
 			myVersion, err := firmware.GetFirmwareInfo("files/" + fwFile.Value)
@@ -455,7 +495,7 @@ func sendContactMe(listenPort, host string) {
 	}
 }
 
-func timerFunc(managedPhones []item, manageInterval time.Duration, listenPort string) {
+func timerFunc(managedPhones []ConfigEntry, manageInterval time.Duration, listenPort string) {
 	ticker := time.NewTicker(manageInterval)
 	defer ticker.Stop()
 
@@ -475,8 +515,8 @@ func timerFunc(managedPhones []item, manageInterval time.Duration, listenPort st
 	}
 }
 
-func requireItem(items []item, name string) item {
-	item, err := getItem(items, name)
+func requireConfigEntry(conf ConfigFile, name string) ConfigEntry {
+	entry, err := conf.GetEntry(name)
 
 	if err != nil {
 		_log(nil, "Failed to find required entry %v\n", name)
@@ -484,27 +524,27 @@ func requireItem(items []item, name string) item {
 		panic("")
 	}
 
-	return item
+	return entry
 }
 
 func main() {
 	phoneState = make(map[string]*phoneDesc)
 
-	config, err := itemsFromFile(confSrv)
+	config, err := getConfigFile(confSrv)
 	if err != nil {
 		_log(nil, "Failed to read config file %v: %v", confSrv, err)
 		os.Exit(1)
 	}
 
-	listenIP := requireItem(config, "listen-ip").Value
-	listenPort := requireItem(config, "listen-port").Value
+	listenIP := requireConfigEntry(*config, "listen-ip").Value
+	listenPort := requireConfigEntry(*config, "listen-port").Value
 
-	tlsCert := requireItem(config, "tls-cert-file").Value
-	tlsKey := requireItem(config, "tls-key-file").Value
+	tlsCert := requireConfigEntry(*config, "tls-cert-file").Value
+	tlsKey := requireConfigEntry(*config, "tls-key-file").Value
 
-	managedPhones := filterItemList(config, "managed-phones", true)
+	managedPhones := config.GetFilteredEntries("managed-phones", true)
 
-	manageIntervalStr := requireItem(config, "manage-interval").Value
+	manageIntervalStr := requireConfigEntry(*config, "manage-interval").Value
 	manageInterval, err := time.ParseDuration(manageIntervalStr)
 	if err != nil {
 		_log(nil, "Failed to parse manage-interval '%v'\n", manageIntervalStr)

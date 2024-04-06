@@ -6,11 +6,36 @@ import (
 	"os"
 	"regexp"
 	"slices"
-	"strconv"
 	"strings"
 )
 
-func itemsFromFile(confFile string) ([]item, error) {
+type ConfigEntry struct {
+	Name  string
+	Index string
+	Value string
+}
+
+type ConfigFile struct {
+	Name    string
+	Entries []ConfigEntry
+}
+
+func (conf ConfigFile) GetFilteredEntries(prefix string, include bool) []ConfigEntry {
+	res := make([]ConfigEntry, 0)
+	for _, entry := range conf.Entries {
+		if strings.HasPrefix(entry.Name, prefix) == include {
+			res = append(res, entry)
+		}
+	}
+
+	return res
+}
+
+func (conf ConfigFile) GetEntry(name string) (ConfigEntry, error) {
+	return getEntry(conf.Entries, name)
+}
+
+func entriesFromFile(confFile string) ([]ConfigEntry, error) {
 	conf, err := os.ReadFile(confFile)
 	if err != nil {
 		return nil, fmt.Errorf("unable to read file %v: %v", confFile, err)
@@ -18,7 +43,7 @@ func itemsFromFile(confFile string) ([]item, error) {
 
 	rx := regexp.MustCompile(`\s*(?P<Key>[^\[\]= \t]+)(\[(?P<Index>\d+)\])?\s*=\s*(?P<Value>.*)\s*`)
 
-	items := make([]item, 0)
+	entries := make([]ConfigEntry, 0)
 
 	lines := strings.Split(string(conf), "\n")
 	for lineNo, line := range lines {
@@ -32,29 +57,21 @@ func itemsFromFile(confFile string) ([]item, error) {
 			return nil, fmt.Errorf("line #%v '%v' has invalid format", lineNo, line)
 		}
 
-		key, indexStr, value := m[0][1], m[0][3], m[0][4]
+		key, index, value := m[0][1], m[0][3], m[0][4]
 
-		index := 0
-		if indexStr != "" {
-			index, err = strconv.Atoi(indexStr)
-			if err != nil {
-				return nil, fmt.Errorf("line #%v '%v' has invalid index (this should not happen)", lineNo, line)
-			}
-		}
-
-		items = append(items, item{Name: key, Index: index, Value: value})
+		entries = append(entries, ConfigEntry{Name: key, Index: index, Value: value})
 	}
 
-	return items, nil
+	return entries, nil
 }
 
-func mergeItemLists(defaults, specifics []item) []item {
-	res := make([]item, len(defaults))
+func mergeEntryLists(defaults, specifics []ConfigEntry) []ConfigEntry {
+	res := make([]ConfigEntry, len(defaults))
 
 	// don't modify the original array, for reasons...
 	copy(res, defaults)
 	for _, si := range specifics {
-		idx := slices.IndexFunc(res, func(i item) bool { return i.Name == si.Name && i.Index == si.Index })
+		idx := slices.IndexFunc(res, func(i ConfigEntry) bool { return i.Name == si.Name && i.Index == si.Index })
 		if idx != -1 {
 			res[idx] = si
 		} else {
@@ -65,38 +82,36 @@ func mergeItemLists(defaults, specifics []item) []item {
 	return res
 }
 
-func filterItemList(items []item, prefix string, include bool) []item {
-	res := make([]item, 0)
-	for _, item := range items {
-		if strings.HasPrefix(item.Name, prefix) == include {
-			res = append(res, item)
+func getEntry(entries []ConfigEntry, name string) (ConfigEntry, error) {
+	for _, entry := range entries {
+		if entry.Name == name {
+			return entry, nil
 		}
 	}
-
-	return res
+	return ConfigEntry{}, errors.New("no such entry")
 }
 
-func getItem(items []item, name string) (item, error) {
-	for _, item := range items {
-		if item.Name == name {
-			return item, nil
-		}
+func getConfigFile(confFile string) (*ConfigFile, error) {
+	entries, err := entriesFromFile(confFile)
+	if err != nil {
+		return nil, err
 	}
-	return item{}, errors.New("no such item")
+	return &ConfigFile{Name: confFile, Entries: entries}, nil
 }
 
-func getPhoneConfig(phone *phoneDesc, msg message) ([]item, error) {
-	phoneItems, err := itemsFromFile(confDir + "/" + phone.Mac + ".conf")
+func getPhoneConfig(phone *phoneDesc, msg message) (*ConfigFile, error) {
+	phoneEntries, err := entriesFromFile(confDir + "/" + phone.Mac + ".conf")
 	if err != nil {
 		return nil, err
 	}
 
-	defaultItems, err := itemsFromFile(confDir + "/phonedefault.conf")
+	defaultEntries, err := entriesFromFile(confDir + "/phonedefault.conf")
 	if err != nil {
 		return nil, err
 	}
 
-	return mergeItemLists(defaultItems, phoneItems), nil
+	entries := mergeEntryLists(defaultEntries, phoneEntries)
+	return &ConfigFile{Name: phone.Mac + ".conf + phonedefault.conf", Entries: entries}, nil
 }
 
 func getFwItemName(devType string) string {
